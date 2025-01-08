@@ -238,8 +238,8 @@ class EnergyDetector:
 
 def main():
     # Example usage
-    video_path = "input_video.mp4"
-    output_path = "analyzed_video.mp4"
+    video_path = "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/video_ed_for_multimodal.mp4"
+    output_path = "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/video_action_energy_recognition/outputs/output_analyzed_video.mp4"
     
     detector = EnergyDetector()
     
