@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 
+# System imports for environment information and error handling
 import sys
 print(f"Python version: {sys.version}")
 print(f"Python executable: {sys.executable}")
@@ -17,41 +19,65 @@ except Exception as e:
     exit(1)
 
 class EnhancedEnergyEstimator:
+    """
+    A class for estimating visual energy levels in video frames using multiple features.
+    Combines pixel differences, optical flow, and block motion analysis.
+    """
+    
     def __init__(self):
+        """
+        Initialize the energy estimator with default parameters.
+        - Sets block size ranges for motion analysis
+        - Configures optical flow parameters
+        """
         print("Initializing EnhancedEnergyEstimator...")
-        self.min_block_size = 8
-        self.max_block_size = 32
-        self.flow_params = dict(
-            pyr_scale=0.5,
-            levels=3,
-            winsize=15,
-            iterations=3,
-            poly_n=5,
-            poly_sigma=1.2,
-            flags=0
+        self.min_block_size = 8      # Minimum size for block analysis
+        self.max_block_size = 32     # Maximum size for block analysis
+        self.flow_params = dict(     # Optical flow parameters
+            pyr_scale=0.5,           # Image scale (<1) to build pyramids for each image
+            levels=3,                # Number of pyramid layers
+            winsize=15,              # Averaging window size
+            iterations=3,            # Number of iterations at each pyramid level
+            poly_n=5,                # Size of pixel neighborhood for polynomial expansion
+            poly_sigma=1.2,          # Standard deviation for Gaussian used to smooth derivatives
+            flags=0                  # Optional flags
         )
         
     def calculate_pixel_difference(self, frame1: np.ndarray, 
                                  frame2: np.ndarray) -> float:
-        """Calculate pixel-based difference energy"""
-        # Convert to grayscale
+        """
+        Calculate frame-to-frame difference based on pixel values.
+        Args:
+            frame1: First video frame
+            frame2: Second video frame
+        Returns:
+            float: Normalized mean difference energy (0-1)
+        Process:
+            1. Convert frames to grayscale
+            2. Calculate absolute difference
+            3. Normalize and return mean energy
+        """
         gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-        
-        # Calculate absolute difference
         diff = cv2.absdiff(gray1, gray2)
-        
-        # Normalize and return mean energy
         return np.mean(diff) / 255.0
 
     def calculate_optical_flow(self, frame1: np.ndarray, 
                              frame2: np.ndarray) -> float:
-        """Calculate optical flow based energy"""
-        # Convert to grayscale
+        """
+        Calculate motion energy using optical flow analysis.
+        Args:
+            frame1: First video frame
+            frame2: Second video frame
+        Returns:
+            float: Mean motion magnitude
+        Process:
+            1. Convert frames to grayscale
+            2. Calculate Farneback optical flow
+            3. Compute flow magnitude
+        """
         gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-        
-        # Calculate optical flow
         flow = cv2.calcOpticalFlowFarneback(
             gray1, gray2, None, 
             self.flow_params['pyr_scale'],
@@ -62,79 +88,116 @@ class EnhancedEnergyEstimator:
             self.flow_params['poly_sigma'],
             self.flow_params['flags']
         )
-        
-        # Calculate magnitude
         magnitude = np.sqrt(flow[..., 0]**2 + flow[..., 1]**2)
         return np.mean(magnitude)
 
     def calculate_block_motion(self, frame1: np.ndarray, 
                              frame2: np.ndarray) -> float:
-        """Calculate block-based motion energy"""
+        """
+        Calculate motion energy using block-based analysis.
+        Args:
+            frame1: First video frame
+            frame2: Second video frame
+        Returns:
+            float: Normalized block motion energy (0-1)
+        Process:
+            1. Determine optimal block size
+            2. Divide frames into blocks
+            3. Calculate block-wise differences
+            4. Normalize and return energy
+        """
         height, width = frame1.shape[:2]
         block_size = self.determine_optimal_block_size(frame1)
         energy = 0.0
         
         for y in range(0, height - block_size + 1, block_size):
             for x in range(0, width - block_size + 1, block_size):
-                # Extract blocks
                 block1 = frame1[y:y+block_size, x:x+block_size]
                 block2 = frame2[y:y+block_size, x:x+block_size]
-                
-                # Calculate block difference
                 diff = np.mean(np.abs(block1.astype(float) - block2.astype(float)))
                 energy += diff
                 
-        # Normalize
         total_blocks = ((height // block_size) * (width // block_size))
         return energy / (total_blocks * 255.0)
 
     def determine_optimal_block_size(self, frame: np.ndarray) -> int:
-        """Determine optimal block size based on frame content"""
+        """
+        Determine the optimal block size based on frame content.
+        Args:
+            frame: Input video frame
+        Returns:
+            int: Optimal block size
+        Process:
+            1. Convert to grayscale
+            2. Detect edges
+            3. Calculate edge density
+            4. Choose block size based on complexity
+        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 100, 200)
         edge_density = np.mean(edges > 0)
         
-        # Adjust block size based on edge density
-        if edge_density > 0.1:
+        if edge_density > 0.1:           # High complexity
             return self.min_block_size
-        elif edge_density > 0.05:
+        elif edge_density > 0.05:        # Medium complexity
             return (self.min_block_size + self.max_block_size) // 2
-        else:
+        else:                           # Low complexity
             return self.max_block_size
 
     def calculate_adaptive_weights(self, pixel_energy: float, 
                                  flow_energy: float, 
                                  block_energy: float) -> List[float]:
-        """Calculate adaptive weights based on energy values"""
+        """
+        Calculate adaptive weights for combining different energy measures.
+        Args:
+            pixel_energy: Pixel-based energy
+            flow_energy: Optical flow energy
+            block_energy: Block motion energy
+        Returns:
+            List[float]: Normalized weights for each energy type
+        Process:
+            1. Calculate total energy
+            2. Compute relative contributions
+            3. Normalize weights
+        """
         total_energy = pixel_energy + flow_energy + block_energy
         if total_energy == 0:
-            return [0.33, 0.33, 0.34]
+            return [0.33, 0.33, 0.34]  # Equal weights if no energy
             
-        # Adjust weights based on relative contributions
         weights = [
             pixel_energy / total_energy,
             flow_energy / total_energy,
             block_energy / total_energy
         ]
         
-        # Normalize weights
         sum_weights = sum(weights)
         return [w / sum_weights for w in weights]
 
     def enhanced_multi_feature_energy(self, frame1: np.ndarray, 
                                     frame2: np.ndarray) -> Dict:
-        """Calculate energy using multiple features with adaptive weighting"""
-        # Calculate individual energies
+        """
+        Calculate overall energy using multiple features with adaptive weighting.
+        Args:
+            frame1: First video frame
+            frame2: Second video frame
+        Returns:
+            Dict: Complete energy analysis including:
+                - total_energy: Combined energy score
+                - individual energies (pixel, flow, block)
+                - weights used
+        Process:
+            1. Calculate individual energies
+            2. Compute adaptive weights
+            3. Combine weighted energies
+        """
         pixel_energy = self.calculate_pixel_difference(frame1, frame2)
         flow_energy = self.calculate_optical_flow(frame1, frame2)
         block_energy = self.calculate_block_motion(frame1, frame2)
         
-        # Calculate adaptive weights
         weights = self.calculate_adaptive_weights(
             pixel_energy, flow_energy, block_energy
         )
         
-        # Combined energy
         total_energy = (weights[0] * pixel_energy + 
                        weights[1] * flow_energy + 
                        weights[2] * block_energy)
@@ -148,19 +211,36 @@ class EnhancedEnergyEstimator:
         }
 
     def classify_energy_level(self, energy: float) -> int:
-        """Classify energy into levels 0-5"""
+        """
+        Classify energy value into discrete levels (0-5).
+        Args:
+            energy: Combined energy value
+        Returns:
+            int: Energy level classification (0-5)
+        Process:
+            1. Compare energy with thresholds
+            2. Return appropriate level
+        """
         thresholds = [0.1, 0.3, 0.5, 0.7, 0.9]
         for level, threshold in enumerate(thresholds):
             if energy < threshold:
                 return level
-        return 5
+        return 5  # Highest energy level
 
 if __name__ == "__main__":
+    """
+    Main execution block for processing video files.
+    Process:
+        1. Initialize estimator
+        2. Process each video file
+        3. Calculate and display statistics
+        4. Save results
+    """
     print("Main block starting...")
     print("Starting video processing...")
     estimator = EnhancedEnergyEstimator()
     
-    # Define all video paths
+    # Define video paths for testing
     video_paths = {
         'crowd': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/crowd.mp4",
         'ocean': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/ocean.mp4",
@@ -169,7 +249,7 @@ if __name__ == "__main__":
         'surf': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/surf.mp4"
     }
     
-    # Process each video
+    # Process each video and collect statistics
     for video_name, video_path in video_paths.items():
         print(f"\nProcessing {video_name} video...")
         
