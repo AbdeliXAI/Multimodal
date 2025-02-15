@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-===================================================================================================
-Enhanced Multi-Feature Energy Estimator running 68 short videos of 10-to-30sec from movies trailer.
-Please the Accuracy_score_and_confusion_matrix.py for Results of the Analysis.
-===================================================================================================
-
+Enhanced Multi-Feature Energy Estimator
+-------------------------------------
 This module implements a comprehensive approach combining multiple features
 for estimating motion energy levels in video sequences.
 
@@ -82,6 +79,8 @@ try:
     import os
     from typing import Tuple, List, Dict
     print("All imports completed")
+    import time
+    from datetime import datetime
 except Exception as e:
     print(f"Error during imports: {str(e)}")
     exit(1)
@@ -324,7 +323,12 @@ if __name__ == "__main__":
     
     print("\nProcessing videos...")
     # Process each video
+    start_time = time.time()
+    start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"\nProcessing started at: {start_datetime}")
+    
     for video_name, video_path in video_paths.items():
+        video_start = time.time()
         print(f"\nProcessing {video_name}...")
         
         # Check if file exists
@@ -362,4 +366,19 @@ if __name__ == "__main__":
             print(f"- Average Energy: {avg_energy:.3f}")
             print("-" * 50)
         else:
-            print(f"{video_name}: Could not process video") 
+            print(f"{video_name}: Could not process video")
+        
+        video_end = time.time()
+        video_time = video_end - video_start
+        print(f"Time to process {video_name}: {video_time:.2f} seconds")
+    
+    end_time = time.time()
+    end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    total_time = end_time - start_time
+
+    print("\nFinal Timing Analysis:")
+    print(f"Start time: {start_datetime}")
+    print(f"End time: {end_datetime}")
+    print(f"Total processing time: {total_time/60:.2f} minutes")
+    print(f"Total videos processed: {len(video_paths)}")
+    print(f"Average time per video: {total_time/len(video_paths):.2f} seconds")
