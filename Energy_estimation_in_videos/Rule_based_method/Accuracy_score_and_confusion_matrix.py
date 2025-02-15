@@ -2,6 +2,16 @@
 Execution output of 68 videos of 10-to-30sec of movie trailers: 
 ===============================================================
 
+
+Final Timing Analysis:
+----------------------
+Start time: 2025-02-15 19:03:35
+End time: 2025-02-15 19:19:58
+Total processing time: 16.39 minutes
+Total videos processed: 68
+Average time per video: 14.46 seconds
+
+
 Results of the Analysis:
 -----------------------
 
@@ -32,7 +42,9 @@ Column 3:
 - Accuracy: 0.676 (67.6%)
 - True instances: 35
 - Predicted instances: 55
+
 """
+
 
 from sklearn.metrics import accuracy_score, confusion_matrix
 import numpy as np
