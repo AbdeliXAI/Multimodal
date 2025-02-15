@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Enhanced Multi-Feature Energy Estimator
--------------------------------------
+===================================================================================================
+Enhanced Multi-Feature Energy Estimator running 68 short videos of 10-to-30sec from movies trailer.
+Please the Accuracy_score_and_confusion_matrix.py for Results of the Analysis.
+===================================================================================================
+
 This module implements a comprehensive approach combining multiple features
 for estimating motion energy levels in video sequences.
 
