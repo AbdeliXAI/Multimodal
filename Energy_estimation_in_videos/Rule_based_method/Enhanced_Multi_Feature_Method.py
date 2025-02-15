@@ -1,4 +1,69 @@
 #!/usr/bin/env python3
+"""
+Enhanced Multi-Feature Energy Estimator
+-------------------------------------
+This module implements a comprehensive approach combining multiple features
+for estimating motion energy levels in video sequences.
+
+Energy Level Classification:
+- LOW: energy < 0.3 (minimal motion/changes between frames)
+- MEDIUM: 0.3 <= energy < 0.7 (moderate motion/changes)
+- HIGH: energy >= 0.7 (significant motion/changes)
+
+The output will look like this:
+-------------------------------
+Processing video1...
+video1: HIGH (Average Energy: 0.823)
+
+Processing video2...
+video2: MEDIUM (Average Energy: 0.456)
+
+Processing video3...
+video3: LOW (Average Energy: 0.234)
+
+
+The energy estimation combines:
+-------------------------------
+1. Pixel differences
+2. Optical flow analysis
+3. Block motion detection
+
+Final energy level is determined by averaging the energy across all frames
+and classifying into one of three levels: LOW, MEDIUM, or HIGH.
+"""
+
+"""calculate_pixel_difference
+Calculate frame-to-frame difference based on pixel values.
+Process:
+    1. Convert frames to grayscale
+    2. Calculate absolute difference
+    3. Normalize and return mean energy
+"""
+
+"""calculate_optical_flow
+Calculate motion energy using optical flow analysis.
+Process:
+    1. Convert frames to grayscale
+    2. Calculate Farneback optical flow
+    3. Compute flow magnitude
+"""
+
+"""calculate_block_motion
+Calculate motion energy using block-based analysis.
+Process:
+    1. Determine optimal block size
+    2. Divide frames into blocks
+    3. Calculate block-wise differences
+    4. Normalize and return energy
+"""
+
+"""enhanced_multi_feature_energy
+Calculate overall energy using multiple features with adaptive weighting.
+Process:
+    1. Calculate individual energies
+    2. Compute adaptive weights
+    3. Combine weighted energies
+"""
 
 # System imports for environment information and error handling
 import sys
@@ -210,22 +275,22 @@ class EnhancedEnergyEstimator:
             'weights': weights
         }
 
-    def classify_energy_level(self, energy: float) -> int:
+    def classify_energy_level(self, energy: float) -> str:
         """
-        Classify energy value into discrete levels (0-5).
+        Classify energy value into three discrete levels (LOW, MEDIUM, HIGH).
         Args:
             energy: Combined energy value
         Returns:
-            int: Energy level classification (0-5)
+            str: Energy level classification (LOW, MEDIUM, HIGH)
         Process:
             1. Compare energy with thresholds
             2. Return appropriate level
         """
-        thresholds = [0.1, 0.3, 0.5, 0.7, 0.9]
-        for level, threshold in enumerate(thresholds):
-            if energy < threshold:
-                return level
-        return 5  # Highest energy level
+        if energy < 0.3:
+            return "LOW"
+        elif energy < 0.7:
+            return "MEDIUM"
+        return "HIGH"  # For energy >= 0.7
 
 if __name__ == "__main__":
     """
@@ -240,38 +305,31 @@ if __name__ == "__main__":
     print("Starting video processing...")
     estimator = EnhancedEnergyEstimator()
     
-    # Define video paths for testing
-    video_paths = {
-        'crowd': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/crowd.mp4",
-        'ocean': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/ocean.mp4",
-        'pingPong': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/pingPong.mp4",
-        'market': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/market.mp4",
-        'surf': "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/short_videos/surf.mp4"
-    }
+    # Define base directory for videos
+    video_dir = "/home/abdeli/yobi_gitLab/batch-call-transcription/ai_external_services/multimodal/energyDetection/dataset_annotated_for_energy_level/rule_based_dataset_annotated/Evaluate_Rule_Based_Methods/short_movies_trailer"
     
-    # Process each video and collect statistics
+    # Automatically create video_paths dictionary from all videos in directory
+    video_paths = {}
+    for video_file in os.listdir(video_dir):
+        if video_file.endswith(('.mp4', '.avi', '.mov', '.mkv')):
+            video_name = os.path.splitext(video_file)[0]
+            video_paths[video_name] = os.path.join(video_dir, video_file)
+    
+    print("\nFound videos:")
+    for name, path in video_paths.items():
+        print(f"- {name}: {path}")
+    
+    print("\nProcessing videos...")
+    # Process each video
     for video_name, video_path in video_paths.items():
-        print(f"\nProcessing {video_name} video...")
+        print(f"\nProcessing {video_name}...")
         
         # Check if file exists
         if not os.path.exists(video_path):
             print(f"Error: Video file not found at {video_path}")
             continue
         
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"Error: Could not open video file {video_name}")
-            continue
-            
-        # Get video info
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        print(f"Total frames in {video_name}: {total_frames}")
-        cap.release()
-        
-        print(f"Processing {video_name}...")
-        frame_count = 0
-        
-        # Process with progress updates
+        # Process video and collect results
         results = []
         cap = cv2.VideoCapture(video_path)
         
@@ -287,62 +345,18 @@ if __name__ == "__main__":
                 
             # Calculate energy
             energy_data = estimator.enhanced_multi_feature_energy(prev_frame, curr_frame)
-            
-            # Add frame information
-            energy_data.update({
-                'frame_number': frame_count,
-                'energy_level': estimator.classify_energy_level(energy_data['total_energy'])
-            })
-            
-            results.append(energy_data)
+            results.append(energy_data['total_energy'])
             prev_frame = curr_frame
-            frame_count += 1
-            
-            # Show progress every 10 frames
-            #if frame_count % 10 == 0:
-            #    print(f"Processed {frame_count}/{total_frames} frames...")
         
         cap.release()
-        print(f"\nProcessing complete for {video_name}. Found {len(results)} frames.")
         
-        # Initialize statistics per level
-        level_stats = {0: [], 1: [], 2: [], 3: [], 4: [], 5: []}
-        
-        # Collect data for each level
-        for frame_data in results:
-            level = frame_data['energy_level']
-            level_stats[level].append({
-                'energy': frame_data['total_energy'],
-                'weights': frame_data['weights'],
-                'pixel_energy': frame_data['pixel_energy'],
-                'flow_energy': frame_data['flow_energy'],
-                'block_energy': frame_data['block_energy']
-            })
-        
-        # Print statistics for current video
-        print(f"\nEnergy Level Statistics for {video_name}:")
-        print("Level | Frames (%) | Avg Energy | Avg Weights [Pixel, Flow, Block] | Individual Energies [Pixel, Flow, Block]")
-        print("-" * 100)
-        
-        # Calculate and print statistics for each level
-        for level in range(6):
-            frames = level_stats[level]
-            if frames:
-                num_frames = len(frames)
-                percentage = (num_frames / len(results)) * 100
-                avg_energy = sum(f['energy'] for f in frames) / num_frames
-                
-                # Calculate average individual energies
-                avg_pixel = sum(f['pixel_energy'] for f in frames) / num_frames
-                avg_flow = sum(f['flow_energy'] for f in frames) / num_frames
-                avg_block = sum(f['block_energy'] for f in frames) / num_frames
-                
-                # Calculate average weights
-                avg_weights = [
-                    sum(f['weights'][i] for f in frames) / num_frames 
-                    for i in range(3)
-                ]
-                
-                print(f"  {level}   | {num_frames:3d} ({percentage:5.1f}%) | {avg_energy:9.3f} | [{', '.join(f'{w:.3f}' for w in avg_weights)}] | [{avg_pixel:.3f}, {avg_flow:.3f}, {avg_block:.3f}]")
-        
-        print("\n" + "="*100)  # Separator between videos 
+        # Calculate average energy and final classification for the entire video
+        if results:
+            avg_energy = sum(results) / len(results)
+            final_level = estimator.classify_energy_level(avg_energy)
+            print(f"Results for {video_name}:")
+            print(f"- Energy Level: {final_level}")
+            print(f"- Average Energy: {avg_energy:.3f}")
+            print("-" * 50)
+        else:
+            print(f"{video_name}: Could not process video") 
